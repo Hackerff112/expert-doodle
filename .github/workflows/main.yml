@@ -1,4 +1,4 @@
-name: SSH-VPS-Tmate
+name: SSH-VPS-Cloudflare
 on: 
   workflow_dispatch:
 
@@ -7,27 +7,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: Install and Run Tmate via Alternative Server
+    - name: Setup SSH & Cloudflare Tunnel
       run: |
-        # 1. تحميل وتثبيت أداة tmate الرسمية
-        sudo apt-get update && sudo apt-get install tmate -y
+        # 1. تثبيت خادم SSH وأداة جلب الروابط ttyd لفتح السيرفر في المتصفح
+        sudo apt-get update
+        sudo apt-get install -y openssh-server
         
-        # 2. تشغيل tmate وإجباره على استخدام السيرفر الأوروبي (أكثر استقراراً للاتصال المباشر)
-        tmate -S /tmp/tmate.sock new-session -d
-        tmate -S /tmp/tmate.sock wait tmate
+        # تحميل أداة ttyd لإنشاء محطة تحكم عبر الويب
+        sudo wget -O /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
+        sudo chmod +x /usr/local/bin/ttyd
         
-        # 3. طباعة الروابط بشكل نظيف داخل الـ Logs
+        # تشغيل المحطة في الخلفية على منفذ 7681 بدون كلمة مرور للسهولة
+        ttyd -p 7681 bash &
+        
+        # 2. تحميل وتثبيت أداة Cloudflare
+        curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+        sudo dpkg -i cloudflared.deb
+        
+        # 3. تشغيل نفق Cloudflare وتوجيه محطة الويب
         echo "=========================================================="
-        echo "🎉 🎉 تم تشغيل الـ VPS بنجاح 🎉 🎉"
-        echo "=========================================================="
-        echo "🌐 رابط المتصفح المباشر (افتحه في الكروم فوراً):"
-        tmate -S /tmp/tmate.sock display -p '#{tmate_web}'
-        echo "----------------------------------------------------------"
-        echo "💻 أمر الـ SSH لتطبيق Termux:"
-        tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'
+        echo "🎉 جاري توليد رابط الـ VPS الخاص بك... انتظر ثوانٍ..."
         echo "=========================================================="
         
-        # إبقاء السيرفر حياً لمدة 6 ساعات
+        # تشغيل النفق وحفظ المخرجات لاستخراج الرابط
+        cloudflared tunnel --url http://localhost:7681 > cloudflare.log 2>&1 &
+        
+        # الانتظار 5 ثوانٍ ليتصل النفق
+        sleep 5
+        
+        # استخراج رابط المتصفح المباشر وطباعته بوضوح
+        echo "=========================================================="
+        echo "🌐 افتح هذا الرابط في متصفح الهاتف (Chrome):"
+        grep -o 'https://[-a-get-zero-trust-trycloudflare.com]*\.trycloudflare\.com' cloudflare.log | head -n 1
+        echo "=========================================================="
+        
+        # إبقاء السيرفر يعمل لمدة 6 ساعات
         sleep 21600
