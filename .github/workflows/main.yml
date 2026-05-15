@@ -1,4 +1,4 @@
-name: SSH-VPS-Cloudflare
+name: SSH-Cloudflare-Termux
 on: 
   workflow_dispatch:
 
@@ -9,35 +9,25 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup SSH & Cloudflare Tunnel
+    - name: Run SSH For Termux
       run: |
-        # 1. تثبيت الحزم والمحطة
-        sudo apt-get update
-        sudo apt-get install -y openssh-server
+        sudo apt-get update && sudo apt-get install -y openssh-server
+        echo "root:rootpassword" | sudo chpasswd
+        sudo mkdir -p /var/run/sshd
+        echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config
+        echo "PasswordAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
+        sudo service ssh restart
         
-        sudo wget -O /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
-        sudo chmod +x /usr/local/bin/ttyd
-        
-        # تشغيل ttyd في الخلفية
-        ttyd -p 7681 bash &
-        
-        # 2. تثبيت Cloudflare
+        # تحميل أداة Cloudflare
         curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
         sudo dpkg -i cloudflared.deb
         
-        # 3. تشغيل النفق
-        cloudflared tunnel --url http://localhost:7681 > cloudflare.log 2>&1 &
-        
-        # انتظر 15 ثانية كاملة لضمان توليد الرابط من السيرفر بنجاح
-        echo "=== جاري الاتصال بخوادم Cloudflare وتوليد الرابط المباشر (انتظر 15 ثانية) ==="
+        # تشغيل النفق ببروتوكول الـ SSH وليس الـ HTTP
+        cloudflared tunnel --url ssh://localhost:22 > cloudflare.log 2>&1 &
         sleep 15
         
         echo "=========================================================="
-        echo "🌐 الرابط المباشر للمتصفح (Web Terminal):"
+        echo "🔗 انسخ الرابط أدناه وضعه في Termux:"
+        grep -o 'https://[-a-get-zero-trust-trycloudflare.com]*\.trycloudflare\.com' cloudflare.log | sed 's/https:\/\///' | head -n 1
         echo "=========================================================="
-        # طباعة السطر الذي يحتوي على الرابط بدقة
-        cat cloudflare.log | grep -o 'https://.*trycloudflare.com' || cat cloudflare.log
-        echo "=========================================================="
-        
-        # إبقاء الجلسة حية
         sleep 21600
