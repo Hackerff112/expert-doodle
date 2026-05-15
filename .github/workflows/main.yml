@@ -11,6 +11,7 @@ jobs:
 
     - name: Run SSH For Termux
       run: |
+        # 1. تثبيت خادم SSH وإعداده
         sudo apt-get update && sudo apt-get install -y openssh-server
         echo "root:rootpassword" | sudo chpasswd
         sudo mkdir -p /var/run/sshd
@@ -18,16 +19,28 @@ jobs:
         echo "PasswordAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
         sudo service ssh restart
         
-        # تحميل أداة Cloudflare
+        # 2. تحميل وتثبيت أداة Cloudflare
         curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
         sudo dpkg -i cloudflared.deb
         
-        # تشغيل النفق ببروتوكول الـ SSH وليس الـ HTTP
+        # 3. تشغيل النفق وتوجيه الـ SSH وحفظ السجلات
         cloudflared tunnel --url ssh://localhost:22 > cloudflare.log 2>&1 &
-        sleep 15
         
+        # الانتظار لمدة 20 ثانية لضمان استلام الرابط من السيرفر
+        echo "=== جاري الاتصال وتوليد الرابط... انتظر 20 ثانية ==="
+        sleep 20
+        
+        # 4. طباعة الرابط بوضوح
         echo "=========================================================="
         echo "🔗 انسخ الرابط أدناه وضعه في Termux:"
+        echo "=========================================================="
         grep -o 'https://[-a-get-zero-trust-trycloudflare.com]*\.trycloudflare\.com' cloudflare.log | sed 's/https:\/\///' | head -n 1
         echo "=========================================================="
+        
+        # طباعة السجل الكامل كخيار احتياطي إذا كان هناك تأخير إضافي
+        echo "📋 السجل الكامل للنفق (إذا لم يظهر الرابط أعلاه، ابحث عن رابط .trycloudflare.com هنا):"
+        cat cloudflare.log
+        echo "=========================================================="
+        
+        # إبقاء السيرفر حياً لمدة 6 ساعات
         sleep 21600
