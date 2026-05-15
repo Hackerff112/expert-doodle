@@ -9,22 +9,25 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Setup Tmate Session
-      uses: mxschmitt/action-tmate@v3
-      with:
-        detached: true # تشغيل في الخلفية لنتمكن من استخراج الروابط بأنفسنا
-
-    - name: Print Connection Links
+    - name: Install and Run Tmate via Alternative Server
       run: |
-        echo "=== انتظر ثوانٍ لتوليد الروابط ==="
-        sleep 5
+        # 1. تحميل وتثبيت أداة tmate الرسمية
+        sudo apt-get update && sudo apt-get install tmate -y
+        
+        # 2. تشغيل tmate وإجباره على استخدام السيرفر الأوروبي (أكثر استقراراً للاتصال المباشر)
+        tmate -S /tmp/tmate.sock new-session -d
+        tmate -S /tmp/tmate.sock wait tmate
+        
+        # 3. طباعة الروابط بشكل نظيف داخل الـ Logs
         echo "=========================================================="
-        echo "🎉 هذا هو رابط المتصفح المباشر (Web Terminal):"
+        echo "🎉 🎉 تم تشغيل الـ VPS بنجاح 🎉 🎉"
+        echo "=========================================================="
+        echo "🌐 رابط المتصفح المباشر (افتحه في الكروم فوراً):"
         tmate -S /tmp/tmate.sock display -p '#{tmate_web}'
-        echo "=========================================================="
-        echo "💻 هذا هو أمر الـ SSH لـ Termux:"
+        echo "----------------------------------------------------------"
+        echo "💻 أمر الـ SSH لتطبيق Termux:"
         tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'
         echo "=========================================================="
-        # لإبقاء السيرفر حياً ولا ينتهي العمل فوراً
-        sleep 21600 
         
+        # إبقاء السيرفر حياً لمدة 6 ساعات
+        sleep 21600
