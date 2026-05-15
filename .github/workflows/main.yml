@@ -1,0 +1,30 @@
+name: SSH-VPS-Tmate
+on: 
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Tmate Session
+      uses: mxschmitt/action-tmate@v3
+      with:
+        detached: true # تشغيل في الخلفية لنتمكن من استخراج الروابط بأنفسنا
+
+    - name: Print Connection Links
+      run: |
+        echo "=== انتظر ثوانٍ لتوليد الروابط ==="
+        sleep 5
+        echo "=========================================================="
+        echo "🎉 هذا هو رابط المتصفح المباشر (Web Terminal):"
+        tmate -S /tmp/tmate.sock display -p '#{tmate_web}'
+        echo "=========================================================="
+        echo "💻 هذا هو أمر الـ SSH لـ Termux:"
+        tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'
+        echo "=========================================================="
+        # لإبقاء السيرفر حياً ولا ينتهي العمل فوراً
+        sleep 21600 
+        
