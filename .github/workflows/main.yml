@@ -1,4 +1,4 @@
-name: SSH-Cloudflare-Termux
+name: SSH-Ngrok-Termux
 on: 
   workflow_dispatch:
 
@@ -9,9 +9,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Run SSH For Termux
+    - name: Run SSH via Ngrok
       run: |
-        # 1. تثبيت خادم SSH وإعداده
+        # 1. تثبيت وتجهيز خادم SSH
         sudo apt-get update && sudo apt-get install -y openssh-server
         echo "root:rootpassword" | sudo chpasswd
         sudo mkdir -p /var/run/sshd
@@ -19,28 +19,23 @@ jobs:
         echo "PasswordAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
         sudo service ssh restart
         
-        # 2. تحميل وتثبيت أداة Cloudflare
-        curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-        sudo dpkg -i cloudflared.deb
+        # 2. تحميل وتثبيت Ngrok
+        wget -q https://bin.equinox.io/c/b3419c4fe1f/ngrok-stable-linux-amd64.zip
+        unzip -q ngrok-stable-linux-amd64.zip
         
-        # 3. تشغيل النفق وتوجيه الـ SSH وحفظ السجلات
-        cloudflared tunnel --url ssh://localhost:22 > cloudflare.log 2>&1 &
+        # 3. ربط حسابك (ضع التوكن الخاص بك مكان XXXXXXX)
+        ./ngrok authtoken 2Km7kgNws0g9aXtH4ZzdxzK6R9Z_2qGLQM9mJNeP5XLBfbTbf
         
-        # الانتظار لمدة 20 ثانية لضمان استلام الرابط من السيرفر
-        echo "=== جاري الاتصال وتوليد الرابط... انتظر 20 ثانية ==="
-        sleep 20
+        # 4. تشغيل النفق لمنفذ الـ SSH
+        ./ngrok tcp 22 > /dev/null &
+        sleep 5
         
-        # 4. طباعة الرابط بوضوح
+        # 5. جلب أمر الاتصال المباشر لـ Termux
         echo "=========================================================="
-        echo "🔗 انسخ الرابط أدناه وضعه في Termux:"
+        echo "💻 انسخ الأمر أدناه وضعه في Termux مباشرة:"
         echo "=========================================================="
-        grep -o 'https://[-a-get-zero-trust-trycloudflare.com]*\.trycloudflare\.com' cloudflare.log | sed 's/https:\/\///' | head -n 1
-        echo "=========================================================="
-        
-        # طباعة السجل الكامل كخيار احتياطي إذا كان هناك تأخير إضافي
-        echo "📋 السجل الكامل للنفق (إذا لم يظهر الرابط أعلاه، ابحث عن رابط .trycloudflare.com هنا):"
-        cat cloudflare.log
+        curl -s http://localhost:4040/api/tunnels | grep -o 'tcp://[^"]*' | sed 's/tcp:\/\//ssh root@/' | sed 's/:/ -p /'
         echo "=========================================================="
         
-        # إبقاء السيرفر حياً لمدة 6 ساعات
+        # إبقاء السيرفر يعمل لمدة 6 ساعات
         sleep 21600
